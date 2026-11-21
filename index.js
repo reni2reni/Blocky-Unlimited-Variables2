@@ -308,7 +308,17 @@
       .ev-cat-left{display:flex;align-items:center;gap:8px}
       .ev-list{flex:1;background:#000000;border-radius:8px;padding:10px;overflow:auto;display:flex;flex-direction:column;overflow-anchor:none}
       .ev-row{display:flex;justify-content:space-between;align-items:center;padding:8px;background:#171717;border-radius:6px;margin-bottom:8px}
-.ev-row.dragging{opacity:0.85;background:#2a2a2a;box-shadow:0 8px 24px rgba(0,0,0,0.6)}
+      .ev-row.dragging {
+  opacity: 0.9;
+  background: #2b2b2b;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8);
+  border: 1px solid #666;
+  position: relative;
+  z-index: 100;
+}
+.ev-no-select {
+  user-select: none !important;
+}
       .ev-btn{padding:6px 10px;border-radius:6px;border:none;color:#fff;cursor:pointer}
       .ev-add{background:#008a00}
       .ev-edit{background:#3a3a3a}
@@ -566,34 +576,38 @@
       }
     }
 
-    function initDnDIfNeeded() {
-      let lastTarget = undefined; // 直前の挿入先を記憶
+    dragHandle.onpointerdown = (e) => {
+      e.preventDefault();
+      e.stopPropagation();
 
-      center.ondragover = (ev) => {
-        ev.preventDefault();
-        ev.dataTransfer.dropEffect = "move";
-        const dragging = center.querySelector(".ev-row.dragging");
-        if (!dragging) return;
+      row.classList.add("dragging");
+      document.body.classList.add("ev-no-select");
 
-        // カーソル直下の行だけをピンポイントで取得（全行ループを廃止）
-        const targetRow = ev.target.closest(".ev-row");
-        if (!targetRow || targetRow === dragging) return;
+      const onPointerMove = (moveEv) => {
+        // カーソル位置にある要素を取得
+        const elUnderCursor = document.elementFromPoint(moveEv.clientX, moveEv.clientY);
+        const targetRow = elUnderCursor ? elUnderCursor.closest(".ev-row") : null;
+
+        if (!targetRow || targetRow === row || !center.contains(targetRow)) return;
 
         const rect = targetRow.getBoundingClientRect();
-        const isAfter = ev.clientY > rect.top + rect.height / 2;
+        const isAfter = moveEv.clientY > rect.top + rect.height / 2;
         const insertRef = isAfter ? targetRow.nextSibling : targetRow;
 
-        // すでに同じ位置にいるなら何もしない（無駄な再描画を防止）
-        if (insertRef === dragging || lastTarget === insertRef) return;
-        lastTarget = insertRef;
-
-        center.insertBefore(dragging, insertRef);
+        if (insertRef !== row && row.nextSibling !== insertRef) {
+          center.insertBefore(row, insertRef);
+        }
       };
 
-      center.ondrop = (ev) => {
-        ev.preventDefault();
+      const onPointerUp = () => {
+        window.removeEventListener("pointermove", onPointerMove);
+        window.removeEventListener("pointerup", onPointerUp);
+
+        row.classList.remove("dragging");
+        document.body.classList.remove("ev-no-select");
+
+        // 並び替え結果を保存・反映
         const newOrder = [...center.querySelectorAll(".ev-row")].map(r => r.dataset.varId);
-        // ★ 手動でドラッグした順序を「新しいDEF順序」として永久保存！
         defOrderMap[currentCategory] = [...newOrder];
         saveDefOrderMap(defOrderMap);
 
@@ -602,7 +616,10 @@
         rebuildCategories();
         rebuildList();
       };
-    }
+
+      window.addEventListener("pointermove", onPointerMove);
+      window.addEventListener("pointerup", onPointerUp);
+    };
 
     function rebuildList() {
       const fresh = getLiveRegistry(); 
