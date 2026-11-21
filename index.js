@@ -482,73 +482,34 @@
 
     const categoryScrollMap = {};
 
-    function startCatPointerDrag(startEvent, dragEl) {
-      let moved = false;
-      let rafId = null;
-      let latestY = startEvent.clientY;
-      const startY = startEvent.clientY;
-      dragEl.style.transition = "none";
-
-      const stepMove = () => {
-        rafId = null;
-        if (!moved && Math.abs(latestY - startY) < 3) return;
-        if (!moved) {
-          moved = true;
-          dragEl.classList.add("dragging");
-        }
-        const others = [...left.querySelectorAll(".ev-cat")].filter(c => c !== dragEl);
-        let placed = false;
-        for (let i = 0; i < others.length; i++) {
-          const other = others[i];
-          const rect = other.getBoundingClientRect();
-          if (latestY < rect.top + rect.height * 0.5) {
-            if (dragEl.nextSibling !== other) left.insertBefore(dragEl, other);
-            placed = true;
-            break;
-          }
-        }
-        if (!placed) {
-          const last = others[others.length - 1];
-          if (last && dragEl.previousSibling !== last) left.appendChild(dragEl);
-        }
+    function initCatDnD() {
+      left.ondragover = (ev) => {
+        ev.preventDefault();
+        ev.dataTransfer.dropEffect = "move";
+        const dragging = left.querySelector(".ev-cat.dragging");
+        if (!dragging) return;
+        const cats = [...left.querySelectorAll(".ev-cat:not(.dragging)")];
+        const after = cats.find(c => ev.clientY <= c.getBoundingClientRect().top + c.offsetHeight / 2);
+        if (after) left.insertBefore(dragging, after);
+        else left.appendChild(dragging);
       };
 
-      const onMove = (ev) => {
-        latestY = ev.clientY;
-        if (!rafId) {
-          rafId = requestAnimationFrame(stepMove);
-        }
-      };
-
-      const onUp = () => {
-        document.removeEventListener("mousemove", onMove, true);
-        document.removeEventListener("mouseup", onUp, true);
-        if (rafId) {
-          cancelAnimationFrame(rafId);
-          rafId = null;
-        }
-        dragEl.classList.remove("dragging");
-        dragEl.style.transition = "";
-        if (!moved) return;
-
-        dragEl.dataset.justDragged = "1";
-        setTimeout(() => { dragEl.dataset.justDragged = "0"; }, 0);
-
+      left.ondrop = (ev) => {
+        ev.preventDefault();
         const domCats = [...left.querySelectorAll(".ev-cat")].map(c => c.dataset.catName).filter(Boolean);
         if (domCats.length > 0) {
           CATEGORIES = domCats;
           saveCategoryOrder(CATEGORIES);
         }
+        rebuildCategories();
       };
-
-      document.addEventListener("mousemove", onMove, true);
-      document.addEventListener("mouseup", onUp, true);
     }
 
     function rebuildCategories() {
       left.innerHTML = "";
       const fresh = getLiveRegistry();
       Object.assign(live, fresh);
+      initCatDnD();
 
       for (const cat of CATEGORIES) {
         const el = document.createElement("div"); 
@@ -563,7 +524,7 @@
 
         const handle = document.createElement("div");
         handle.className = "ev-drag-handle";
-        handle.title = "ドラッグして種類順を移動";
+        handle.title = "ドラッグしてグループ順を移動";
 
         const nameSpan = document.createElement("span");
         nameSpan.style.fontWeight = "600";
@@ -580,22 +541,25 @@
         el.appendChild(countSpan);
 
         el.onclick = (e) => {
-
-          if (e.target === handle || el.dataset.justDragged === "1") {
-            el.dataset.justDragged = "0";
-            return;
-          }
+          if (e.target === handle) return;
           categoryScrollMap[currentCategory] = center.scrollTop;
           currentCategory = cat;
           rebuildCategories();
           rebuildList();
         };
 
-        handle.onmousedown = (e) => {
-          if (e.button !== 0) return;
-          e.preventDefault();
-          e.stopPropagation();
-          startCatPointerDrag(e, el);
+        handle.onmousedown = () => { el.setAttribute("draggable", "true"); };
+        handle.onmouseup = () => { el.removeAttribute("draggable"); };
+
+        el.ondragstart = (ev) => {
+          ev.dataTransfer.effectAllowed = "move";
+          ev.dataTransfer.setData("text/plain", cat);
+          el.classList.add("dragging");
+        };
+
+        el.ondragend = () => {
+          el.classList.remove("dragging");
+          el.removeAttribute("draggable");
         };
 
         left.appendChild(el);
