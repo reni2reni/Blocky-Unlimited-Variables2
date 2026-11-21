@@ -501,14 +501,16 @@
           CATEGORIES = domCats;
           saveCategoryOrder(CATEGORIES);
         }
-        rebuildCategories();
+        left.querySelectorAll(".ev-cat").forEach(el => {
+          el.classList.remove("dragging");
+          el.removeAttribute("draggable");
+          el.classList.toggle("selected", el.dataset.catName === currentCategory);
+        });
       };
     }
 
     function rebuildCategories() {
       left.innerHTML = "";
-      const fresh = getLiveRegistry();
-      Object.assign(live, fresh);
       initCatDnD();
 
       for (const cat of CATEGORIES) {
