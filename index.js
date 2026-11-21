@@ -482,31 +482,67 @@
 
     const categoryScrollMap = {};
 
-    function initCatDnD() {
-      left.ondragover = (ev) => {
-        ev.preventDefault();
-        ev.dataTransfer.dropEffect = "move";
-        const dragging = left.querySelector(".ev-cat.dragging");
-        if (!dragging) return;
-        const cats = [...left.querySelectorAll(".ev-cat:not(.dragging)")];
-        const after = cats.find(c => ev.clientY <= c.getBoundingClientRect().top + c.offsetHeight / 2);
-        if (after) left.insertBefore(dragging, after);
-        else left.appendChild(dragging);
+    function startCatPointerDrag(startEvent, dragEl) {
+      let moved = false;
+      let rafId = null;
+      let latestY = startEvent.clientY;
+      const startY = startEvent.clientY;
+      dragEl.style.transition = "none";
+
+      const stepMove = () => {
+        rafId = null;
+        if (!moved && Math.abs(latestY - startY) < 3) return;
+        if (!moved) {
+          moved = true;
+          dragEl.classList.add("dragging");
+        }
+        const others = [...left.querySelectorAll(".ev-cat")].filter(c => c !== dragEl);
+        let placed = false;
+        for (let i = 0; i < others.length; i++) {
+          const other = others[i];
+          const rect = other.getBoundingClientRect();
+          if (latestY < rect.top + rect.height * 0.5) {
+            if (dragEl.nextSibling !== other) left.insertBefore(dragEl, other);
+            placed = true;
+            break;
+          }
+        }
+        if (!placed) {
+          const last = others[others.length - 1];
+          if (last && dragEl.previousSibling !== last) left.appendChild(dragEl);
+        }
       };
 
-      left.ondrop = (ev) => {
-        ev.preventDefault();
+      const onMove = (ev) => {
+        latestY = ev.clientY;
+        if (!rafId) {
+          rafId = requestAnimationFrame(stepMove);
+        }
+      };
+
+      const onUp = () => {
+        document.removeEventListener("mousemove", onMove, true);
+        document.removeEventListener("mouseup", onUp, true);
+        if (rafId) {
+          cancelAnimationFrame(rafId);
+          rafId = null;
+        }
+        dragEl.classList.remove("dragging");
+        dragEl.style.transition = "";
+        if (!moved) return;
+
+        dragEl.dataset.justDragged = "1";
+        setTimeout(() => { dragEl.dataset.justDragged = "0"; }, 0);
+
         const domCats = [...left.querySelectorAll(".ev-cat")].map(c => c.dataset.catName).filter(Boolean);
         if (domCats.length > 0) {
           CATEGORIES = domCats;
           saveCategoryOrder(CATEGORIES);
         }
-        left.querySelectorAll(".ev-cat").forEach(el => {
-          el.classList.remove("dragging");
-          el.removeAttribute("draggable");
-          el.classList.toggle("selected", el.dataset.catName === currentCategory);
-        });
       };
+
+      document.addEventListener("mousemove", onMove, true);
+      document.addEventListener("mouseup", onUp, true);
     }
 
     function rebuildCategories() {
@@ -559,7 +595,7 @@
           if (e.button !== 0) return;
           e.preventDefault();
           e.stopPropagation();
-          startCatPointerDrag(e, el, cat);
+          startCatPointerDrag(e, el);
         };
 
         left.appendChild(el);
