@@ -626,7 +626,6 @@
       Object.assign(live, fresh);
       center.innerHTML = "";
       center.scrollTop = 0;
-      initDnDIfNeeded();
 
       const currentVars = live[currentCategory] || [];
       let sortMode = categorySortMap[currentCategory] || "def";
