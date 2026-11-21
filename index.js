@@ -307,8 +307,8 @@
       .ev-cat.dragging{opacity:0.4;background:#333}
       .ev-cat-left{display:flex;align-items:center;gap:8px}
       .ev-list{flex:1;background:#000000;border-radius:8px;padding:10px;overflow:auto;display:flex;flex-direction:column;overflow-anchor:none}
-      .ev-row{display:flex;justify-content:space-between;align-items:center;padding:8px;background:#171717;border-radius:6px;margin-bottom:8px;transition:transform 0.15s ease,box-shadow 0.15s ease,background 0.15s ease}
-      .ev-row.dragging{opacity:0.9;background:#252525;box-shadow:0 8px 24px rgba(0,0,0,0.6);transform:scale(1.01)}
+      .ev-row{display:flex;justify-content:space-between;align-items:center;padding:8px;background:#171717;border-radius:6px;margin-bottom:8px}
+.ev-row.dragging{opacity:0.85;background:#2a2a2a;box-shadow:0 8px 24px rgba(0,0,0,0.6)}
       .ev-btn{padding:6px 10px;border-radius:6px;border:none;color:#fff;cursor:pointer}
       .ev-add{background:#008a00}
       .ev-edit{background:#3a3a3a}
@@ -567,15 +567,27 @@
     }
 
     function initDnDIfNeeded() {
+      let lastTarget = undefined; // 直前の挿入先を記憶
+
       center.ondragover = (ev) => {
         ev.preventDefault();
         ev.dataTransfer.dropEffect = "move";
         const dragging = center.querySelector(".ev-row.dragging");
         if (!dragging) return;
-        const rows = [...center.querySelectorAll(".ev-row:not(.dragging)")];
-        const after = rows.find(r => ev.clientY <= r.getBoundingClientRect().top + r.offsetHeight / 2);
-        if (after) center.insertBefore(dragging, after);
-        else center.appendChild(dragging);
+
+        // カーソル直下の行だけをピンポイントで取得（全行ループを廃止）
+        const targetRow = ev.target.closest(".ev-row");
+        if (!targetRow || targetRow === dragging) return;
+
+        const rect = targetRow.getBoundingClientRect();
+        const isAfter = ev.clientY > rect.top + rect.height / 2;
+        const insertRef = isAfter ? targetRow.nextSibling : targetRow;
+
+        // すでに同じ位置にいるなら何もしない（無駄な再描画を防止）
+        if (insertRef === dragging || lastTarget === insertRef) return;
+        lastTarget = insertRef;
+
+        center.insertBefore(dragging, insertRef);
       };
 
       center.ondrop = (ev) => {
