@@ -511,7 +511,8 @@
 
     function rebuildCategories() {
       left.innerHTML = "";
-      initCatDnD();
+      const fresh = getLiveRegistry();
+      Object.assign(live, fresh);
 
       for (const cat of CATEGORIES) {
         const el = document.createElement("div"); 
@@ -526,7 +527,7 @@
 
         const handle = document.createElement("div");
         handle.className = "ev-drag-handle";
-        handle.title = "ドラッグしてグループ順を移動";
+        handle.title = "ドラッグして種類順を移動";
 
         const nameSpan = document.createElement("span");
         nameSpan.style.fontWeight = "600";
@@ -543,25 +544,22 @@
         el.appendChild(countSpan);
 
         el.onclick = (e) => {
-          if (e.target === handle) return;
+
+          if (e.target === handle || el.dataset.justDragged === "1") {
+            el.dataset.justDragged = "0";
+            return;
+          }
           categoryScrollMap[currentCategory] = center.scrollTop;
           currentCategory = cat;
           rebuildCategories();
           rebuildList();
         };
 
-        handle.onmousedown = () => { el.setAttribute("draggable", "true"); };
-        handle.onmouseup = () => { el.removeAttribute("draggable"); };
-
-        el.ondragstart = (ev) => {
-          ev.dataTransfer.effectAllowed = "move";
-          ev.dataTransfer.setData("text/plain", cat);
-          el.classList.add("dragging");
-        };
-
-        el.ondragend = () => {
-          el.classList.remove("dragging");
-          el.removeAttribute("draggable");
+        handle.onmousedown = (e) => {
+          if (e.button !== 0) return;
+          e.preventDefault();
+          e.stopPropagation();
+          startCatPointerDrag(e, el, cat);
         };
 
         left.appendChild(el);
