@@ -307,18 +307,8 @@
       .ev-cat.dragging{opacity:0.4;background:#333}
       .ev-cat-left{display:flex;align-items:center;gap:8px}
       .ev-list{flex:1;background:#000000;border-radius:8px;padding:10px;overflow:auto;display:flex;flex-direction:column;overflow-anchor:none}
-      .ev-row{display:flex;justify-content:space-between;align-items:center;padding:8px;background:#171717;border-radius:6px;margin-bottom:8px}
-      .ev-row.dragging {
-  opacity: 0.9;
-  background: #2b2b2b;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.8);
-  border: 1px solid #666;
-  position: relative;
-  z-index: 100;
-}
-.ev-no-select {
-  user-select: none !important;
-}
+      .ev-row{display:flex;justify-content:space-between;align-items:center;padding:8px;background:#171717;border-radius:6px;margin-bottom:8px;transition:transform 0.15s ease,box-shadow 0.15s ease,background 0.15s ease}
+      .ev-row.dragging{opacity:0.9;background:#252525;box-shadow:0 8px 24px rgba(0,0,0,0.6);transform:scale(1.01)}
       .ev-btn{padding:6px 10px;border-radius:6px;border:none;color:#fff;cursor:pointer}
       .ev-add{background:#008a00}
       .ev-edit{background:#3a3a3a}
@@ -576,38 +566,22 @@
       }
     }
 
-    dragHandle.onpointerdown = (e) => {
-      e.preventDefault();
-      e.stopPropagation();
-
-      row.classList.add("dragging");
-      document.body.classList.add("ev-no-select");
-
-      const onPointerMove = (moveEv) => {
-        // カーソル位置にある要素を取得
-        const elUnderCursor = document.elementFromPoint(moveEv.clientX, moveEv.clientY);
-        const targetRow = elUnderCursor ? elUnderCursor.closest(".ev-row") : null;
-
-        if (!targetRow || targetRow === row || !center.contains(targetRow)) return;
-
-        const rect = targetRow.getBoundingClientRect();
-        const isAfter = moveEv.clientY > rect.top + rect.height / 2;
-        const insertRef = isAfter ? targetRow.nextSibling : targetRow;
-
-        if (insertRef !== row && row.nextSibling !== insertRef) {
-          center.insertBefore(row, insertRef);
-        }
+    function initDnDIfNeeded() {
+      center.ondragover = (ev) => {
+        ev.preventDefault();
+        ev.dataTransfer.dropEffect = "move";
+        const dragging = center.querySelector(".ev-row.dragging");
+        if (!dragging) return;
+        const rows = [...center.querySelectorAll(".ev-row:not(.dragging)")];
+        const after = rows.find(r => ev.clientY <= r.getBoundingClientRect().top + r.offsetHeight / 2);
+        if (after) center.insertBefore(dragging, after);
+        else center.appendChild(dragging);
       };
 
-      const onPointerUp = () => {
-        window.removeEventListener("pointermove", onPointerMove);
-        window.removeEventListener("pointerup", onPointerUp);
-
-        row.classList.remove("dragging");
-        document.body.classList.remove("ev-no-select");
-
-        // 並び替え結果を保存・反映
+      center.ondrop = (ev) => {
+        ev.preventDefault();
         const newOrder = [...center.querySelectorAll(".ev-row")].map(r => r.dataset.varId);
+        // ★ 手動でドラッグした順序を「新しいDEF順序」として永久保存！
         defOrderMap[currentCategory] = [...newOrder];
         saveDefOrderMap(defOrderMap);
 
@@ -616,16 +590,14 @@
         rebuildCategories();
         rebuildList();
       };
-
-      window.addEventListener("pointermove", onPointerMove);
-      window.addEventListener("pointerup", onPointerUp);
-    };
+    }
 
     function rebuildList() {
       const fresh = getLiveRegistry(); 
       Object.assign(live, fresh);
       center.innerHTML = "";
       center.scrollTop = 0;
+      initDnDIfNeeded();
 
       const currentVars = live[currentCategory] || [];
       let sortMode = categorySortMap[currentCategory] || "def";
@@ -826,7 +798,7 @@
       if(reg && typeof reg.register==="function"){
         const item={
           id:"manageExtendedVariables",
-          displayText:"Manage Variables2",
+          displayText:"Manage Variables",
           preconditionFn:()=> "enabled",
           callback:()=>openModal(),
           scopeType:(typeof _Blockly!=="undefined"&&_Blockly.ContextMenuRegistry)?_Blockly.ContextMenuRegistry.ScopeType.WORKSPACE
@@ -844,7 +816,7 @@
         setTimeout(()=>{
           const menu=document.querySelector(".context-menu, .bp-context-menu, .blocklyContextMenu"); if(!menu) return;
           if(menu.querySelector("[data-extvars]")) return;
-          const el=document.createElement("div"); el.setAttribute("data-extvars","1"); el.style.padding="6px 10px"; el.style.cursor="pointer"; el.style.color="#e9eef2"; el.textContent="Manage Variables2"; el.addEventListener("click",()=>{ openModal(); try{menu.style.display="none";}catch(e){} }); menu.appendChild(el);
+          const el=document.createElement("div"); el.setAttribute("data-extvars","1"); el.style.padding="6px 10px"; el.style.cursor="pointer"; el.style.color="#e9eef2"; el.textContent="Manage Variables"; el.addEventListener("click",()=>{ openModal(); try{menu.style.display="none";}catch(e){} }); menu.appendChild(el);
         },40);
       });
     })();
