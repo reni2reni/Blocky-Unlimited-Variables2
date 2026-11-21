@@ -798,7 +798,7 @@
       if(reg && typeof reg.register==="function"){
         const item={
           id:"manageExtendedVariables",
-          displayText:"Manage Variables",
+          displayText:"Manage Variables2",
           preconditionFn:()=> "enabled",
           callback:()=>openModal(),
           scopeType:(typeof _Blockly!=="undefined"&&_Blockly.ContextMenuRegistry)?_Blockly.ContextMenuRegistry.ScopeType.WORKSPACE
@@ -816,7 +816,7 @@
         setTimeout(()=>{
           const menu=document.querySelector(".context-menu, .bp-context-menu, .blocklyContextMenu"); if(!menu) return;
           if(menu.querySelector("[data-extvars]")) return;
-          const el=document.createElement("div"); el.setAttribute("data-extvars","1"); el.style.padding="6px 10px"; el.style.cursor="pointer"; el.style.color="#e9eef2"; el.textContent="Manage Variables"; el.addEventListener("click",()=>{ openModal(); try{menu.style.display="none";}catch(e){} }); menu.appendChild(el);
+          const el=document.createElement("div"); el.setAttribute("data-extvars","1"); el.style.padding="6px 10px"; el.style.cursor="pointer"; el.style.color="#e9eef2"; el.textContent="Manage Variables2"; el.addEventListener("click",()=>{ openModal(); try{menu.style.display="none";}catch(e){} }); menu.appendChild(el);
         },40);
       });
     })();
