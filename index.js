@@ -294,21 +294,21 @@
   }
 
   // ---------- inject CSS ----------
-  (function injectStyle(){
+  (function injectStyle() {
     const style = document.createElement("style");
     style.textContent = `
       .ev-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.55);display:flex;align-items:center;justify-content:center;z-index:999999}
       .ev-modal{width:min(1100px,94vw);height:min(760px,90vh);background:#1e1e1e;border-radius:10px;padding:14px;display:flex;flex-direction:column;color:#e9eef2;font-family:Inter,Arial,sans-serif;box-shadow:0 12px 48px rgba(0,0,0,0.75)}
       .ev-content{display:flex;gap:12px;flex:1;overflow:hidden}
       .ev-cats{width:240px;background:#000000;border-radius:8px;padding:10px;overflow-y:auto}
-      .ev-cat{padding:8px;border-radius:6px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;background:#171717;color:#e9eef2;margin-bottom:6px;transition:background 0.15s ease,transform 0.15s ease;user-select:none;position:relative}
-      .ev-cat:hover{background:#434343;transform:translateX(1px)}
+      .ev-cat{padding:8px;border-radius:6px;cursor:pointer;display:flex;justify-content:space-between;align-items:center;background:#171717;color:#e9eef2;margin-bottom:6px;user-select:none;position:relative}
+      .ev-cat:hover{background:#434343}
       .ev-cat.selected{background:#6e0000;border-left:4px solid #ff0a03}
       .ev-cat.dragging{opacity:0.4;background:#333}
       .ev-cat-left{display:flex;align-items:center;gap:8px}
-      .ev-list{flex:1;background:#000000;border-radius:8px;padding:10px;overflow:auto;display:flex;flex-direction:column;overflow-anchor:none}
-      .ev-row{display:flex;justify-content:space-between;align-items:center;padding:8px;background:#171717;border-radius:6px;margin-bottom:8px;transition:transform 0.15s ease,box-shadow 0.15s ease,background 0.15s ease}
-      .ev-row.dragging{opacity:0.9;background:#252525;box-shadow:0 8px 24px rgba(0,0,0,0.6);transform:scale(1.01)}
+      .ev-list{flex:1;background:#000000;border-radius:8px;padding:10px;overflow-y:auto;display:flex;flex-direction:column;}
+      .ev-row{display:flex;justify-content:space-between;align-items:center;padding:8px;background:#171717;border-radius:6px;margin-bottom:8px;}
+      .ev-row.dragging{opacity:0.5;background:#252525;}
       .ev-btn{padding:6px 10px;border-radius:6px;border:none;color:#fff;cursor:pointer}
       .ev-add{background:#008a00}
       .ev-edit{background:#3a3a3a}
@@ -575,27 +575,27 @@
         ev.dataTransfer.dropEffect = "move";
         const dragging = center.querySelector(".ev-row.dragging");
         if (!dragging) return;
-        const rows = [...center.querySelectorAll(".ev-row:not(.dragging)")];
-        const after = rows.find(r => ev.clientY <= r.getBoundingClientRect().top + r.offsetHeight / 2);
 
-        // ★ 高速化: ドラッグ中はDOMの並び替えのみを行う（データ書き換えや再描画はしない）
-        if (after) center.insertBefore(dragging, after);
-        else center.appendChild(dragging);
+        // マウス位置にある要素の直前にサッと挿入する（ブラウザのレイアウト計算を最小限にする）
+        const after = [...center.querySelectorAll(".ev-row:not(.dragging)")]
+          .find(r => ev.clientY <= r.getBoundingClientRect().top + r.offsetHeight / 2);
+
+        if (after) {
+          center.insertBefore(dragging, after);
+        } else {
+          center.appendChild(dragging);
+        }
       };
 
       center.ondrop = (ev) => {
         ev.preventDefault();
-        // ★ ドロップが確定した瞬間（指を離したとき）にだけ一括でデータ保存とブロックリー側の並び替えを実行
         const newOrder = [...center.querySelectorAll(".ev-row")].map(r => r.dataset.varId);
         defOrderMap[currentCategory] = [...newOrder];
         saveDefOrderMap(defOrderMap);
 
         categorySortMap[currentCategory] = "def";
         reorderVariablesInMap(ws, currentCategory, newOrder);
-
-        // ここで初めて再描画と同期を行う
-        rebuildCategories();
-        rebuildList();
+        // ここでは再描画せず、DOMの並びが既に完了しているのでデータ同期のみでOK
       };
     }
 
