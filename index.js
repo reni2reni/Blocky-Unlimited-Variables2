@@ -436,7 +436,7 @@
     top.className = "ev-top";
     const title = document.createElement("div"); 
     title.className = "ev-title"; 
-    title.innerText = "Advanced Variable Manager"; 
+    title.innerText = "Advanced Variable Manager2"; 
     top.appendChild(title);
 
     const topActions = document.createElement("div"); 
@@ -490,12 +490,15 @@
         if (!dragging) return;
         const cats = [...left.querySelectorAll(".ev-cat:not(.dragging)")];
         const after = cats.find(c => ev.clientY <= c.getBoundingClientRect().top + c.offsetHeight / 2);
+
+        // ★ 高速化: ドロップ前のDOM並び替えだけを軽量に実行
         if (after) left.insertBefore(dragging, after);
         else left.appendChild(dragging);
       };
 
       left.ondrop = (ev) => {
         ev.preventDefault();
+        // ★ ドロップが確定した瞬間にだけデータを保存・反映
         const domCats = [...left.querySelectorAll(".ev-cat")].map(c => c.dataset.catName).filter(Boolean);
         if (domCats.length > 0) {
           CATEGORIES = domCats;
@@ -574,19 +577,23 @@
         if (!dragging) return;
         const rows = [...center.querySelectorAll(".ev-row:not(.dragging)")];
         const after = rows.find(r => ev.clientY <= r.getBoundingClientRect().top + r.offsetHeight / 2);
+
+        // ★ 高速化: ドラッグ中はDOMの並び替えのみを行う（データ書き換えや再描画はしない）
         if (after) center.insertBefore(dragging, after);
         else center.appendChild(dragging);
       };
 
       center.ondrop = (ev) => {
         ev.preventDefault();
+        // ★ ドロップが確定した瞬間（指を離したとき）にだけ一括でデータ保存とブロックリー側の並び替えを実行
         const newOrder = [...center.querySelectorAll(".ev-row")].map(r => r.dataset.varId);
-        // ★ 手動でドラッグした順序を「新しいDEF順序」として永久保存！
         defOrderMap[currentCategory] = [...newOrder];
         saveDefOrderMap(defOrderMap);
 
         categorySortMap[currentCategory] = "def";
         reorderVariablesInMap(ws, currentCategory, newOrder);
+
+        // ここで初めて再描画と同期を行う
         rebuildCategories();
         rebuildList();
       };
