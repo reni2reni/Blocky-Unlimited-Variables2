@@ -1,9 +1,9 @@
 /* global BF2042Portal, _Blockly */
 (function () {
-    const plugin = BF2042Portal.Plugins.getPlugin("extended-variable-manager");
+    const plugin = BF2042Portal.Plugins.getPlugin("variable-manager");
 
     plugin.initializeWorkspace = function () {
-        console.log("Extended Variable Manager initialized.");
+        console.log("Variable Manager initialized successfully");
     };
 
     // デフォルトカテゴリ
@@ -51,7 +51,7 @@
 
     let CATEGORIES = loadCategoryOrder();
 
-    // ---------- Workspace & Variable Helpers ----------
+    // ---------- Blockly Workspace & Variable Helpers ----------
     function getMainWorkspaceSafe() {
         try {
             if (typeof _Blockly !== "undefined" && _Blockly.getMainWorkspace) return _Blockly.getMainWorkspace();
@@ -178,37 +178,12 @@
         return count;
     }
 
-    function reorderVariablesInMap(ws, cat, orderedIds) {
-        const map = workspaceGetVariableMap(ws);
-        if (!map) return;
-        const vm = map.variableMap;
-        if (!vm || typeof vm.get !== "function") return;
-        const raw = vm.get(cat);
-        if (!Array.isArray(raw)) return;
-
-        const varMap = new Map();
-        for (const v of raw) varMap.set(getVarId(v), v);
-
-        const newArr = [];
-        for (const id of orderedIds) {
-            if (varMap.has(id)) {
-                newArr.push(varMap.get(id));
-                varMap.delete(id);
-            }
-        }
-        for (const v of varMap.values()) newArr.push(v);
-
-        raw.length = 0;
-        for (const v of newArr) raw.push(v);
-        vm.set(cat, raw);
-    }
-
-    // ---------- Styles for UI ----------
+    // ---------- CSS Styles ----------
     (function injectStyle() {
         const style = document.createElement("style");
         style.textContent = `
             .ev-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:999999;font-family:Arial,sans-serif;}
-            .ev-modal{width:900px;height:650px;background:#1e1e1e;border-radius:8px;padding:16px;display:flex;flex-direction:column;color:#fff;box-shadow:0 8px 32px rgba(0,0,0,0.8);}
+            .ev-modal{width:900px;height:600px;background:#1e1e1e;border-radius:8px;padding:16px;display:flex;flex-direction:column;color:#fff;box-shadow:0 8px 32px rgba(0,0,0,0.8);}
             .ev-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;border-bottom:1px solid #333;padding-bottom:8px;}
             .ev-title{font-size:18px;font-weight:bold;}
             .ev-content{display:flex;gap:12px;flex:1;overflow:hidden;}
@@ -228,8 +203,8 @@
         document.head.appendChild(style);
     })();
 
-    // ---------- Modal UI Implementation ----------
-    function openVariableManager() {
+    // ---------- Modal Panel ----------
+    function showVariableManagerPanel() {
         const ws = getMainWorkspaceSafe();
         const live = getLiveRegistry();
 
@@ -272,17 +247,15 @@
         const defOrderMap = loadDefOrderMap();
 
         function renderModal() {
-            // 左側カテゴリ一覧描画
+            // 左側カテゴリ描画
             leftPane.innerHTML = "";
             const currentLive = getLiveRegistry();
 
             CATEGORIES.forEach(cat => {
                 const item = document.createElement("div");
                 item.className = `ev-cat ${cat === currentCategory ? "selected" : ""}`;
-                
                 const count = (currentLive[cat] || []).length;
                 item.innerHTML = `<span>${cat}</span><span class="ev-muted">${count}</span>`;
-                
                 item.onclick = () => {
                     currentCategory = cat;
                     renderModal();
@@ -290,11 +263,10 @@
                 leftPane.appendChild(item);
             });
 
-            // 右側変数一覧・作成欄描画
+            // 右側リスト＆作成フォーム描画
             rightPane.innerHTML = "";
             const varsInCat = currentLive[currentCategory] || [];
 
-            // 新規作成フォーム
             const formDiv = document.createElement("div");
             formDiv.style.cssText = "display:flex; gap:8px; margin-bottom:12px;";
 
@@ -306,7 +278,7 @@
             const addBtn = document.createElement("button");
             addBtn.className = "ev-btn ev-add";
             addBtn.innerText = "追加";
-            
+
             const handleAdd = () => {
                 const valName = input.value.trim();
                 if (valName) {
@@ -327,7 +299,6 @@
             formDiv.appendChild(addBtn);
             rightPane.appendChild(formDiv);
 
-            // リスト本体
             const listContainer = document.createElement("div");
             listContainer.style.cssText = "flex:1; overflow-y:auto;";
 
@@ -391,30 +362,30 @@
         document.body.appendChild(overlay);
     }
 
-    // ---------- Plugin Menu Registration (最初のサンプルの正しい形式) ----------
-    const variableManagerItem = {
-        id: "variableManagerItem",
-        displayText: "変数マネージャー (Variables)",
+    // ---------- 最初のサンプルコードと同じ確実なメニュー登録方式 ----------
+    const testVariableManagerItem = {
+        id: "testVariableManagerItem",
+        displayText: "Variable Manager",
         scopeType: _Blockly.ContextMenuRegistry.ScopeType.WORKSPACE,
-        weight: 90,
+        weight: 100,
         preconditionFn: () => "enabled",
         callback: function () {
-            openVariableManager();
+            showVariableManagerPanel();
         },
     };
 
-    const variableManagerMenu = plugin.createMenu(
-        "variableManagerWorkspaceMenu",
+    const testWorkspaceMenu = plugin.createMenu(
+        "testVariableManagerWorkspace",
         "Variable Manager",
         _Blockly.ContextMenuRegistry.ScopeType.WORKSPACE
     );
     
-    variableManagerMenu.options = [
-        "items.variableManagerItem"
+    testWorkspaceMenu.options = [
+        "items.testVariableManagerItem"
     ];
 
-    plugin.registerMenu(variableManagerMenu);
-    plugin.registerItem(variableManagerItem);
+    plugin.registerMenu(testWorkspaceMenu);
+    plugin.registerItem(testVariableManagerItem);
 
-    _Blockly.ContextMenuRegistry.registry.register(variableManagerMenu);
+    _Blockly.ContextMenuRegistry.registry.register(testWorkspaceMenu);
 })();
