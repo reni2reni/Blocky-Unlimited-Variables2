@@ -1,8 +1,8 @@
 {
-    "id": "extended-variable-manager",
-    "name": "Extended Variable Manager",
-    "version": "2.2.0",
-    "description": "Advanced variable manager with category support, sorting, and drag-and-drop",
-    "author": "LennardF1989 & Custom",
+    "id": "variable-manager",
+    "name": "Variable Manager",
+    "version": "2.1.0",
+    "description": "Extended Variable Manager for BF2042 Portal",
+    "author": "Custom",
     "main": "index.js"
 }
