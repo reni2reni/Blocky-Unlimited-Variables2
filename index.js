@@ -247,37 +247,91 @@
     const defOrderMap = loadDefOrderMap();
 
     function renderModal() {
-      // 左側カテゴリ描画
+      // ==========================================
+      // 左側：カテゴリ一覧の描画 ＆ ドラッグ＆ドロップ並び替え
+      // ==========================================
       leftPane.innerHTML = "";
       const currentLive = getLiveRegistry();
+
+      // ドロップ時の処理 (カテゴリ)
+      leftPane.ondragover = (e) => e.preventDefault();
+      leftPane.ondrop = (e) => {
+        e.preventDefault();
+        const draggedCat = e.dataTransfer.getData("text/category");
+        const targetCat = e.target.closest(".ev-cat")?.dataset.catName;
+        if (draggedCat && targetCat && draggedCat !== targetCat) {
+          const oldIdx = CATEGORIES.indexOf(draggedCat);
+          const newIdx = CATEGORIES.indexOf(targetCat);
+          if (oldIdx > -1 && newIdx > -1) {
+            CATEGORIES.splice(oldIdx, 1);
+            CATEGORIES.splice(newIdx, 0, draggedCat);
+            saveCategoryOrder(CATEGORIES);
+            renderModal();
+          }
+        }
+      };
 
       CATEGORIES.forEach(cat => {
         const item = document.createElement("div");
         item.className = `ev-cat ${cat === currentCategory ? "selected" : ""}`;
+        item.dataset.catName = cat;
+        item.draggable = true;
+
         const count = (currentLive[cat] || []).length;
-        item.innerHTML = `<span>${cat}</span><span class="ev-muted">${count}</span>`;
-        item.onclick = () => {
+
+        // ≡ハンドルとカテゴリ名
+        const leftWrap = document.createElement("div");
+        leftWrap.style.cssText = "display:flex; align-items:center; gap:6px; pointer-events:none;";
+
+        const handle = document.createElement("span");
+        handle.innerText = "≡";
+        handle.style.cssText = "cursor:grab; font-weight:bold; color:#aaa; pointer-events:auto;";
+
+        const nameSpan = document.createElement("span");
+        nameSpan.innerText = cat;
+
+        leftWrap.appendChild(handle);
+        leftWrap.appendChild(nameSpan);
+
+        const countSpan = document.createElement("span");
+        countSpan.className = "ev-muted";
+        countSpan.innerText = count;
+
+        item.appendChild(leftWrap);
+        item.appendChild(countSpan);
+
+        // ドラッグイベント (カテゴリ)
+        item.ondragstart = (e) => {
+          e.dataTransfer.setData("text/category", cat);
+          e.stopPropagation();
+        };
+
+        item.onclick = (e) => {
+          if (e.target === handle) return;
           currentCategory = cat;
           renderModal();
         };
         leftPane.appendChild(item);
       });
 
-      // 右側リスト＆作成フォーム描画
+      // ==========================================
+      // 右側：変数一覧の描画 ＆ ドラッグ＆ドロップ並び替え
+      // ==========================================
       rightPane.innerHTML = "";
       const varsInCat = currentLive[currentCategory] || [];
 
+      // 新規作成フォーム
       const formDiv = document.createElement("div");
       formDiv.style.cssText = "display:flex; gap:8px; margin-bottom:12px;";
 
       const input = document.createElement("input");
       input.type = "text";
-      input.placeholder = `[${currentCategory}] 新規変数名...`;
+      input.placeholder = `[${currentCategory}] New variable name...`;
       input.style.cssText = "flex:1; padding:6px 10px; background:#222; border:1px solid #444; color:#fff; border-radius:4px; outline:none;";
 
       const addBtn = document.createElement("button");
       addBtn.className = "ev-btn ev-add";
-      addBtn.innerText = "追加";
+      addBtn.innerText = "Add";
 
       const handleAdd = () => {
         const valName = input.value.trim();
@@ -302,21 +356,83 @@
       const listContainer = document.createElement("div");
       listContainer.style.cssText = "flex:1; overflow-y:auto;";
 
-      if (varsInCat.length === 0) {
+      // ドロップ時の処理 (変数)
+      listContainer.ondragover = (e) => e.preventDefault();
+      listContainer.ondrop = (e) => {
+        e.preventDefault();
+        const draggedId = e.dataTransfer.getData("text/varId");
+        const targetRow = e.target.closest(".ev-row");
+        const targetId = targetRow ? targetRow.dataset.varId : null;
+
+        if (draggedId && defOrderMap[currentCategory]) {
+          const orderArr = defOrderMap[currentCategory];
+          const oldIdx = orderArr.indexOf(draggedId);
+          if (oldIdx > -1) orderArr.splice(oldIdx, 1);
+
+          if (targetId && targetId !== draggedId) {
+            const newIdx = orderArr.indexOf(targetId);
+            if (newIdx > -1) {
+              orderArr.splice(newIdx, 0, draggedId);
+            } else {
+              orderArr.push(draggedId);
+            }
+          } else {
+            orderArr.push(draggedId);
+          }
+
+          saveDefOrderMap(defOrderMap);
+          reorderVariablesInMap(ws, currentCategory, orderArr);
+          renderModal();
+        }
+      };
+
+      // デフォルト並び順の適用
+      let sortedVars = [...varsInCat];
+      const savedDefIds = defOrderMap[currentCategory] || [];
+      if (savedDefIds.length > 0) {
+        sortedVars.sort((a, b) => {
+          const idxA = savedDefIds.indexOf(a.id);
+          const idxB = savedDefIds.indexOf(b.id);
+          if (idxA === -1) return 1;
+          if (idxB === -1) return -1;
+          return idxA - idxB;
+        });
+      }
+
+      if (sortedVars.length === 0) {
         const empty = document.createElement("div");
         empty.className = "ev-muted";
         empty.style.padding = "20px";
         empty.style.textAlign = "center";
-        empty.innerText = "このカテゴリに変数はありません";
+        empty.innerText = "No variables in this category";
         listContainer.appendChild(empty);
       } else {
-        varsInCat.forEach(v => {
+        sortedVars.forEach(v => {
           const row = document.createElement("div");
           row.className = "ev-row";
+          row.dataset.varId = v.id;
+          row.draggable = true;
+
+          const leftCol = document.createElement("div");
+          leftCol.style.cssText = "display:flex; align-items:center; gap:8px;";
+
+          // ≡ハンドル (変数用)
+          const varHandle = document.createElement("span");
+          varHandle.innerText = "≡";
+          varHandle.style.cssText = "cursor:grab; font-weight:bold; color:#aaa;";
 
           const infoDiv = document.createElement("div");
           const usageCount = countVariableUsage(ws, v);
-          infoDiv.innerHTML = `<div style="font-weight:bold;">${v.name}</div><div class="ev-muted">使用回数: ${usageCount}</div>`;
+          infoDiv.innerHTML = `<div style="font-weight:bold;">${v.name}</div><div class="ev-muted">Uses: ${usageCount}</div>`;
+
+          leftCol.appendChild(varHandle);
+          leftCol.appendChild(infoDiv);
+
+          // ドラッグイベント (変数)
+          row.ondragstart = (e) => {
+            e.dataTransfer.setData("text/varId", v.id);
+            e.stopPropagation();
+          };
 
           const btnGroup = document.createElement("div");
           btnGroup.style.display = "flex";
@@ -324,9 +440,9 @@
 
           const editBtn = document.createElement("button");
           editBtn.className = "ev-btn ev-edit";
-          editBtn.innerText = "名前変更";
+          editBtn.innerText = "Edit";
           editBtn.onclick = () => {
-            const newName = prompt("新しい変数名を入力してください:", v.name);
+            const newName = prompt("Enter new variable name:", v.name);
             if (newName && newName.trim() !== "") {
               const oldName = v.name;
               renameWorkspaceVariable(ws, v._raw, newName.trim());
@@ -337,10 +453,14 @@
 
           const delBtn = document.createElement("button");
           delBtn.className = "ev-btn ev-del";
-          delBtn.innerText = "削除";
+          delBtn.innerText = "Delete";
           delBtn.onclick = () => {
-            if (confirm(`変数 "${v.name}" を削除しますか？`)) {
+            if (confirm(`Delete variable "${v.name}"?`)) {
               deleteWorkspaceVariable(ws, v.id) || deleteWorkspaceVariable(ws, v.name);
+              if (defOrderMap[currentCategory]) {
+                defOrderMap[currentCategory] = defOrderMap[currentCategory].filter(id => id !== v.id);
+                saveDefOrderMap(defOrderMap);
+              }
               renderModal();
             }
           };
@@ -348,7 +468,7 @@
           btnGroup.appendChild(editBtn);
           btnGroup.appendChild(delBtn);
 
-          row.appendChild(infoDiv);
+          row.appendChild(leftCol);
           row.appendChild(btnGroup);
           listContainer.appendChild(row);
         });
