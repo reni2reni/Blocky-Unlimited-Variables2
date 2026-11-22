@@ -1,7 +1,7 @@
 {
     "id": "variable-manager",
     "name": "Variable Manager",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "description": "A plugin to manage variables in the BF2042 Portal block editor",
     "author": "YourName",
     "main": "index.js"
