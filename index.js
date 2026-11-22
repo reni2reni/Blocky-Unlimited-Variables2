@@ -570,15 +570,15 @@
     }
 
     function initDnDIfNeeded() {
+      // ドラッグ中：データや再描画には一切触れず、DOM（画面上の見た目）の順番を入れ替えるだけ
       center.ondragover = (ev) => {
         ev.preventDefault();
         ev.dataTransfer.dropEffect = "move";
         const dragging = center.querySelector(".ev-row.dragging");
         if (!dragging) return;
 
-        // マウス位置にある要素の直前にサッと挿入する（ブラウザのレイアウト計算を最小限にする）
-        const after = [...center.querySelectorAll(".ev-row:not(.dragging)")]
-          .find(r => ev.clientY <= r.getBoundingClientRect().top + r.offsetHeight / 2);
+        const rows = [...center.querySelectorAll(".ev-row:not(.dragging)")];
+        const after = rows.find(r => ev.clientY <= r.getBoundingClientRect().top + r.offsetHeight / 2);
 
         if (after) {
           center.insertBefore(dragging, after);
@@ -587,15 +587,25 @@
         }
       };
 
+      // ドロップ時：ここで初めて新しい並び順を配列にして保存・反映する
       center.ondrop = (ev) => {
         ev.preventDefault();
+        const dragging = center.querySelector(".ev-row.dragging");
+        if (dragging) {
+          dragging.classList.remove("dragging");
+          dragging.removeAttribute("draggable");
+        }
+
+        // 画面上の並び順からIDの配列を抽出
         const newOrder = [...center.querySelectorAll(".ev-row")].map(r => r.dataset.varId);
+
+        // データの保存
         defOrderMap[currentCategory] = [...newOrder];
         saveDefOrderMap(defOrderMap);
-
         categorySortMap[currentCategory] = "def";
+
+        // ブロックリーのマップ側を更新（重い処理はドロップしたこの瞬間1回だけ）
         reorderVariablesInMap(ws, currentCategory, newOrder);
-        // ここでは再描画せず、DOMの並びが既に完了しているのでデータ同期のみでOK
       };
     }
 
