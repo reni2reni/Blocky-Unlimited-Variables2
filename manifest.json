@@ -1,7 +1,7 @@
 {
     "id": "extended-variable-manager",
     "name": "Extended Variable Manager",
-    "version": "2.0.0",
+    "version": "2.1.0",
     "description": "Advanced variable manager with category support, sorting, and drag-and-drop",
     "author": "LennardF1989 & Custom",
     "main": "index.js"
